@@ -5,6 +5,7 @@
 
 jmdict-with-examples.json
 .claude
+logs/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

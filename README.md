@@ -31,11 +31,19 @@ yasashii 猫
 yasashii 猫 -c
 ```
 
+## Important: Anki Must Be Running
+
+**To create cards, you must have:**
+1. **Anki desktop app open and running**
+2. **AnkiConnect addon installed** ([Get it here](https://ankiweb.net/shared/info/2055492159))
+
+Yasashii communicates with Anki through AnkiConnect's local API. If Anki isn't running, you can still look up words, but card creation will fail.
+
 ## Prerequisites
 
 - **Python 3.13+**
 - **[uv](https://github.com/astral-sh/uv)** - Python package manager (setup script will install this)
-- **[Anki](https://apps.ankiweb.net/)** - Desktop app
+- **[Anki](https://apps.ankiweb.net/)** - Desktop app (must be running when creating cards)
 - **[AnkiConnect](https://ankiweb.net/shared/info/2055492159)** - Anki addon for API access
 
 ## Installation
@@ -101,25 +109,27 @@ AUTO_ANKI_AUDIO_FIELD=Audio
 
 ## Usage
 
+> **Note:** To use the `-c` flag (create cards), make sure Anki is open with AnkiConnect installed.
+
 ### Command Line Interface
 
 ```bash
-# Look up a single word
+# Look up a single word (no Anki needed)
 yasashii 猫
 
-# Look up multiple words
+# Look up multiple words (no Anki needed)
 yasashii 猫 犬 鳥
 
-# Look up and create Anki card
+# Look up and create Anki card (requires Anki running)
 yasashii 猫 -c
 
-# Create cards for multiple words
+# Create cards for multiple words (requires Anki running)
 yasashii 猫 犬 鳥 -c
 
-# Process words from a file
+# Process words from a file (no Anki needed)
 yasashii -f words.txt
 
-# Process words from file and create cards
+# Process words from file and create cards (requires Anki running)
 yasashii -f words.txt -c
 ```
 
@@ -129,13 +139,39 @@ yasashii -f words.txt -c
 yasashii-gui
 ```
 
-The GUI allows you to:
-- Enter multiple words (one per line or comma-separated)
-- Toggle card creation on/off
-- See lookup results before creating cards
-- Process many words at once
+> **Note:** If "Add cards to Anki" is checked, make sure Anki is open with AnkiConnect installed.
 
-### Example Output
+The GUI provides an easy way to process multiple words at once:
+
+**How to use:**
+1. Launch with `yasashii-gui`
+2. Enter Japanese words in the text box:
+   - One word per line, OR
+   - Comma-separated (e.g., `猫, 犬, 鳥`)
+3. Check/uncheck "Add cards to Anki" (checked by default)
+4. Click **Submit**
+5. View results in the results panel below
+
+**Features:**
+- **Batch processing**: Add dozens of words at once
+- **Preview before adding**: See readings and meanings before creating cards
+- **Status indicators**: Green = added, Orange = duplicate, Red = not found
+- **Non-blocking**: UI stays responsive while processing
+
+**Example workflow:**
+```
+# In the text box, enter:
+食べる
+飲む
+寝る
+起きる
+
+# Click Submit
+# Results show each word with meanings
+# Cards are automatically added to your Anki deck
+```
+
+### Example Output (CLI)
 
 ```
 📚 猫
