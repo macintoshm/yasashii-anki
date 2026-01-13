@@ -3,7 +3,6 @@
 import os
 import json
 import requests
-from urllib.parse import quote
 from dotenv import load_dotenv
 
 # Load environment variables from .env file
@@ -114,7 +113,7 @@ class AnkiClient:
 
     def _validate_audio_url(self, url):
         """
-        Check if audio URL redirects to a valid CDN file
+        Check if audio URL redirects to a valid audio file
 
         Args:
             url (str): The LanguagePod101 audio URL to validate
@@ -123,11 +122,22 @@ class AnkiClient:
             bool: True if audio exists, False otherwise
         """
         try:
-            response = requests.head(url, allow_redirects=True, timeout=5)
-            # Valid audio redirects to CDN and returns 200
+            # Use GET with stream=True to check without downloading the full file
+            # HEAD requests don't always work correctly with this API
+            # Add User-Agent header to avoid 403 Forbidden responses
+            headers = {
+                'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36'
+            }
+            response = requests.get(url, allow_redirects=True, timeout=5, stream=True, headers=headers)
+            response.close()  # Close immediately, we just needed to check
+
+            # Valid audio returns 200 and has audio content type
+            content_type = response.headers.get('content-type', '')
+            print(f"DEBUG: status_code = {response.status_code}, content_type = {content_type}")
             return (response.status_code == 200 and
-                    'cdn.innovativelanguage.com' in response.url)
-        except requests.RequestException:
+                    ('audio' in content_type or 'mpeg' in content_type))
+        except requests.RequestException as e:
+            print(f"DEBUG: Request exception: {e}")
             return False
 
     def create_card(self, card_info):
@@ -155,12 +165,13 @@ class AnkiClient:
         # Use reading if available, otherwise use the word (for kana-only words)
         kana = readings_list[0] if readings_list else word
 
-        # URL encode the parameters for special characters
-        audio_url = f"https://assets.languagepod101.com/dictionary/japanese/audiomp3.php?kanji={quote(kanji)}&kana={quote(kana)}"
+        # Build audio URL with raw Japanese characters (the API expects them unencoded)
+        audio_url = f"https://assets.languagepod101.com/dictionary/japanese/audiomp3.php?kanji={kanji}&kana={kana}"
         audio_filename = f"yasashii_{kana}_{kanji}.mp3"
 
-        # Validate audio URL before adding to card
-        audio_available = self._validate_audio_url(audio_url)
+        # Skip validation - AnkiConnect will handle the audio download
+        # (The LanguagePod101 CDN blocks some automated requests during validation)
+        audio_available = True
 
         # Initialize sentence variables with defaults
         sentence = ''
