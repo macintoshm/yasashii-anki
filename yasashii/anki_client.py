@@ -3,6 +3,7 @@
 import os
 import json
 import requests
+from urllib.parse import quote
 from dotenv import load_dotenv
 
 # Load environment variables from .env file
@@ -87,6 +88,48 @@ class AnkiClient:
         
         return self.post(payload)
 
+    def _format_meanings_for_card(self, meanings_dict):
+        """
+        Format the meanings dictionary into a string suitable for Anki cards
+        
+        Args:
+            meanings_dict (dict): Dictionary with part_of_speech -> glosses structure
+            
+        Returns:
+            str: Formatted string for the Anki card
+        """
+        if not meanings_dict:
+            return "No meanings found"
+            
+        formatted_meanings = []
+        sense_number = 1
+        for sense_key, glosses in meanings_dict.items():
+            glosses_str = ', '.join(glosses)
+            # Extract part of speech from sense key (format: "sense1 v5k-s, vi")
+            pos = sense_key.split(' ', 1)[1] if ' ' in sense_key else sense_key
+            formatted_meanings.append(f"{sense_number}. ({pos}) {glosses_str}<br><br>")
+            sense_number += 1
+        
+        return '\n'.join(formatted_meanings)
+
+    def _validate_audio_url(self, url):
+        """
+        Check if audio URL redirects to a valid CDN file
+
+        Args:
+            url (str): The LanguagePod101 audio URL to validate
+
+        Returns:
+            bool: True if audio exists, False otherwise
+        """
+        try:
+            response = requests.head(url, allow_redirects=True, timeout=5)
+            # Valid audio redirects to CDN and returns 200
+            return (response.status_code == 200 and
+                    'cdn.innovativelanguage.com' in response.url)
+        except requests.RequestException:
+            return False
+
     def create_card(self, card_info):
         """
         Create a new card in the Anki deck
@@ -102,47 +145,71 @@ class AnkiClient:
         sentence_translation_field=os.getenv('AUTO_ANKI_SENTENCE_TRANSLATION_FIELD')
         audio_field=os.getenv('AUTO_ANKI_AUDIO_FIELD')
 
+        # Build audio URL using kanji and kana reading
+        kanji_list = card_info.get('kanji', [])
+        readings_list = card_info.get('readings', [])
+        word = card_info.get('word', '')
+
+        # Use kanji if available, otherwise fall back to the word itself
+        kanji = kanji_list[0] if kanji_list else word
+        # Use reading if available, otherwise use the word (for kana-only words)
+        kana = readings_list[0] if readings_list else word
+
+        # URL encode the parameters for special characters
+        audio_url = f"https://assets.languagepod101.com/dictionary/japanese/audiomp3.php?kanji={quote(kanji)}&kana={quote(kana)}"
+        audio_filename = f"yasashii_{kana}_{kanji}.mp3"
+
+        # Validate audio URL before adding to card
+        audio_available = self._validate_audio_url(audio_url)
+
+        # Initialize sentence variables with defaults
+        sentence = ''
+        sentence_translation = ''
         if card_info.get('examples'):
             example = card_info['examples'][0]
             sentence = example['sentences']['japanese']
             sentence_translation = example['sentences']['english']
 
+        # Build note payload
+        note = {
+            "deckName": self.deck_name,
+            "modelName": card_type,
+            "fields": {
+                word_field: card_info.get('word'),
+                reading_field: ', '.join(card_info.get('readings', [])),
+                meaning_field: self._format_meanings_for_card(card_info.get('meanings', {})),
+                sentence_field: sentence if sentence else '',
+                sentence_translation_field: sentence_translation if sentence_translation else '',
+            },
+            "options": {
+                "allowDuplicate": False,
+                "duplicateScope": "deck",
+                "duplicateScopeOptions": {
+                    "deckName": self.deck_name,
+                    "checkChildren": False,
+                    "checkAllModels": False
+                }
+            },
+            "tags": [
+                "auto-anki"
+            ]
+        }
+
+        # Only add audio if validation passed
+        if audio_available:
+            note["audio"] = [{
+                "url": audio_url,
+                "filename": audio_filename,
+                "fields": [audio_field]
+            }]
+
         payload = {
             "action": "addNote",
             "version": 6,
             "params": {
-                "note": {
-                    "deckName": self.deck_name,
-                    "modelName": card_type,
-                    "fields": {
-                        word_field: card_info.get('word'),
-                        reading_field: ', '.join(card_info.get('readings', [])),
-                        meaning_field: ', '.join(card_info.get('meanings', [])[:3]),
-                        sentence_field: sentence if sentence else '',
-                        sentence_translation_field: sentence_translation if sentence_translation else '',
-                    },
-                    "options": {
-                        "allowDuplicate": False,
-                        "duplicateScope": "deck",
-                        "duplicateScopeOptions": {
-                            "deckName": self.deck_name,
-                            "checkChildren": False,
-                            "checkAllModels": False
-                        }
-                    },
-                    "tags": [
-                        "auto-anki"
-                    ]
-                    # "audio": {
-                    #     "url": "https://assets.languagepod101.com/dictionary/japanese/audiomp3.php?kanji=猫&kana=ねこ",
-                    #     "filename": "yomichan_ねこ_猫.mp3",
-                    #     "skipHash": "7e2c2f954ef6051373ba916f000168dc",
-                    # "fields": [
-                    #     audio_field
-                    # ]
-                    # }
-                }
+                "note": note
             }
         }
-        
-        return self.post(payload)
+
+        result = self.post(payload)
+        return {"note_id": result, "audio_available": audio_available, "deck_name": self.deck_name}

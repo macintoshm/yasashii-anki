@@ -12,7 +12,7 @@ class ColorfulLogger:
         self.console = Console()
     
     def info(self, message, emoji="ℹ️"):
-        self.console.print(f"{emoji} [blue]{message}[/blue]")
+        self.console.print(f"{emoji} [orchid2]{message}[/orchid2]")
     
     def success(self, message, emoji="✅"):
         self.console.print(f"{emoji} [green]{message}[/green]")
@@ -36,10 +36,23 @@ class ColorfulLogger:
         if not word_data:
             return
             
-        self.console.print(f"\n{emoji} [bold cyan]{word_data.get('word', 'Word')}[/bold cyan]")
+        self.console.print(f"{emoji} [bold yellow]{word_data.get('word', 'Word')}[/bold yellow]")
         self.console.print(f"[bold cyan]Word:\t\t[/bold cyan][bold yellow]{word_data.get('word', 'N/A')}[/bold yellow]")
         self.console.print(f"[bold cyan]Reading:\t[/bold cyan][green]{', '.join(word_data.get('readings', []))}[/green]")
-        self.console.print(f"[bold cyan]Meaning:\t[/bold cyan][blue]{word_data.get('meanings', '')}[/blue]")
+        self.console.print(f"[bold cyan]Meaning:\t[/bold cyan]")
+        
+        # Format the dictionary structure for display
+        meanings_dict = word_data.get('meanings', {})
+        if meanings_dict:
+            sense_number = 1
+            for sense_key, glosses in meanings_dict.items():
+                glosses_str = ', '.join(glosses)
+                # Extract part of speech from sense key (format: "sense1 v5k-s, vi")
+                pos = sense_key.split(' ', 1)[1] if ' ' in sense_key else sense_key
+                self.console.print(f"[pale_violet_red1]\t{sense_number}. [italic light_pink1]({pos})[/italic light_pink1] {glosses_str}[/pale_violet_red1]")
+                sense_number += 1
+        else:
+            self.console.print(f"[blue]No meanings found[/blue]")
         
         if word_data.get('examples'):
             example = word_data['examples'][0]

@@ -43,28 +43,27 @@ args = parser.parse_args()
 def process_single_word(word_text, create=False):
     """Process and display a single Japanese word"""
     try:
-        logger.info(f"Looking up word: {word_text}", "🔍")
-        
-        word = JapaneseWord(word_text)
-        
+        with console.status(f"Looking up {word_text}", spinner="dots"):
+            word = JapaneseWord(word_text)
+
         if word.meaning:
             word.display()
             if create:
                 client = AnkiClient()
                 try:
-                    logger.info(f"Creating Anki card for: {word_text}", "📝")
-                    client.create_card(word.meaning)
-                    logger.success(f"Successfully created Anki card for: {word_text}", "🎴")
+                    with console.status(f"Creating card for {word_text}", spinner="dots"):
+                        result = client.create_card(word.meaning)
+                    deck = result.get('deck_name', 'unknown')
+                    audio_status = "with audio" if result.get('audio_available') else "without audio"
+                    logger.success(f"Added [yellow]{word_text}[/yellow] to deck [cyan]{deck}[/cyan] {audio_status}", "🎴")
                 except Exception as e:
                     if "duplicate" in str(e).lower():
-                        logger.warning(f"Card for '{word_text}' already exists in deck", "🔄")
+                        logger.warning(f"Card for '{word_text}' already exists in deck [cyan]{client.deck_name}[/cyan]", "🔄")
                     else:
                         logger.error(f"Failed to create card for '{word_text}': {e}", "❌")
         else:
             logger.warning(f"No translation found for: {word_text}", "❓")
             logger.info("Try checking the spelling or using a different form of the word", "💡")
-    
-
     except Exception as e:
         logger.error(f"Error processing word '{word_text}': {e}")
 
@@ -72,39 +71,41 @@ def process_single_word(word_text, create=False):
 def process_words_from_file(file_path, create=False):
     """Read words from a text file and display their meanings"""
     try:
-        logger.info(f"Reading words from file: {file_path}", "📖")
-        
-        with open(file_path, 'r', encoding='utf-8') as f:
-            words = [line.strip() for line in f if line.strip()]
-        
-        logger.success(f"Found {len(words)} words to process", "🎯")
-        logger.header(f"Processing Words from {file_path}", "📂")
-        
-        # Process words with progress bar
-        processed_words = []
-        for word_text in track(words, description="🔍 Looking up words..."):
-            if word_text:  # Skip empty lines
-                word = JapaneseWord(word_text)
-                processed_words.append(word)
-        
-        if create:
-            client = AnkiClient()
-        # Display results after progress is complete
-        console.print()  # Add spacing after progress bar
-        for word in processed_words:
-            word.display()
-            console.print()  # Add spacing between words
+        with console.status(f"Reading words from file: {file_path}", spinner="dots"):
+            
+            with open(file_path, 'r', encoding='utf-8') as f:
+                words = [line.strip() for line in f if line.strip()]
+            
+            logger.success(f"Found {len(words)} words to process", "🎯")
+            logger.header(f"Processing Words from {file_path}", "📂")
+            
+            # Process words with progress bar
+            processed_words = []
+            for word_text in track(words, description="🔍 Looking up words..."):
+                if word_text:  # Skip empty lines
+                    word = JapaneseWord(word_text)
+                    processed_words.append(word)
+            
             if create:
-                try:
-                    logger.info(f"Creating Anki card for: {word.word}", "📝")
-                    client.create_card(word.meaning)
-                    logger.success(f"Successfully created Anki card for: {word.word}", "🎴")
-                except Exception as e:
-                    if "duplicate" in str(e).lower():
-                        logger.warning(f"Card for '{word.word}' already exists in deck", "🔄")
-                    else:
-                        logger.error(f"Failed to create card for '{word.word}': {e}", "❌")
-        
+                client = AnkiClient()
+            # Display results after progress is complete
+            console.print()  # Add spacing after progress bar
+            for word in processed_words:
+                word.display()
+                console.print()  # Add spacing between words
+                if create:
+                    try:
+                        logger.info(f"Creating Anki card for: {word.word}", "📝")
+                        result = client.create_card(word.meaning)
+                        deck = result.get('deck_name', 'unknown')
+                        audio_status = "with audio" if result.get('audio_available') else "without audio"
+                        logger.success(f"Added [yellow]{word.word}[/yellow] to deck [cyan]{deck}[/cyan] {audio_status}", "🎴")
+                    except Exception as e:
+                        if "duplicate" in str(e).lower():
+                            logger.warning(f"Card for '{word.word}' already exists in deck [cyan]{client.deck_name}[/cyan]", "🔄")
+                        else:
+                            logger.error(f"Failed to create card for '{word.word}': {e}", "❌")
+
         logger.success(f"Completed processing {len(words)} words!", "🎉")
                 
     except FileNotFoundError:
@@ -134,22 +135,21 @@ def process_multiple_words(words, create=False):
         if create:
             try:
                 logger.info(f"Creating Anki card for: {word.word}", "📝")
-                client.create_card(word.meaning)
-                logger.success(f"Successfully created Anki card for: {word.word}", "🎴")
+                result = client.create_card(word.meaning)
+                deck = result.get('deck_name', 'unknown')
+                audio_status = "with audio" if result.get('audio_available') else "without audio"
+                logger.success(f"Added [yellow]{word.word}[/yellow] to deck [cyan]{deck}[/cyan] {audio_status}", "🎴")
             except Exception as e:
                 if "duplicate" in str(e).lower():
-                    logger.warning(f"Card for '{word.word}' already exists in deck", "🔄")
+                    logger.warning(f"Card for '{word.word}' already exists in deck [cyan]{client.deck_name}[/cyan]", "🔄")
                 else:
                     logger.error(f"Failed to create card for '{word.word}': {e}", "❌")
-    
+
     logger.success(f"Completed processing {len(words)} words!", "🎉")
 
 
 def main():
     """Main function with argument parsing"""
-
-    console.rule("🌸 Yasashii Anki 🌸", style="magenta")
-
     try:
         if args.file:
             # Process words from file
@@ -163,8 +163,6 @@ def main():
         else:
             logger.info("No arguments provided, showing help", "🌸")
             parser.print_help()
-        
-        logger.success("Thanks for using Yasashii! 頑張って!", "🎌")
         
     except KeyboardInterrupt:
         logger.warning("Operation cancelled by user", "⏹️")

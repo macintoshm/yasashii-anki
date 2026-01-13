@@ -27,7 +27,7 @@ class JapaneseWord(str):
         self.word = word
         self.meaning = self._get_primary_meaning()
     
-    def _get_jp_word(self, word: str, prefer_common=True, max_senses=3):
+    def _get_jp_word(self, word: str, prefer_common=True, max_senses=10):
         """
         Get Japanese word with options to filter results
         
@@ -51,7 +51,7 @@ class JapaneseWord(str):
         # 3. Nothing found
         return None
 
-    def _filter_and_rank_results(self, results, prefer_common=True, max_senses=3):
+    def _filter_and_rank_results(self, results, prefer_common=True, max_senses=10):
         """Filter and rank results to get the best matches"""
         if not results:
             return None
@@ -77,11 +77,10 @@ class JapaneseWord(str):
     
     def _get_primary_meaning(self, max_examples=2):
         """Get the primary meaning of this Japanese word"""
-        result = self._get_jp_word(self.word, prefer_common=True, max_senses=1)
+        result = self._get_jp_word(self.word, prefer_common=True, max_senses=10)
         if result and result.get('sense'):
+            # Extract example sentences from the first sense
             primary_sense = result['sense'][0]
-            
-            # Extract example sentences
             examples = []
             for example in primary_sense.get('examples', [])[:max_examples]:
                 example_entry = {
@@ -106,24 +105,23 @@ class JapaneseWord(str):
                     }
                     examples.append(example_entry)
 
-            meanings = [g['text'] for g in primary_sense.get('gloss', [])]
-            part_of_speech = primary_sense.get('partOfSpeech', [])
-            
-            # Format meanings as numbered list with part of speech in parentheses
-            formatted_meanings_list = []
-            for i, meaning in enumerate(meanings):
-                # Include part of speech with each meaning
-                pos_str = ', '.join(part_of_speech) if part_of_speech else ''
-                pos_prefix = f"({pos_str}) " if pos_str else ''
-                formatted_meanings_list.append(f"{i+1}. {pos_prefix}{meaning}")
-            
-            formatted_meanings = '\n'.join(formatted_meanings_list)
+            # Create meanings dictionary structure (each sense gets its own entry)
+            meanings_dict = {}
+            for i, sense in enumerate(result['sense']):
+                glosses = [g['text'] for g in sense.get('gloss', [])]
+                part_of_speech = sense.get('partOfSpeech', [])
+                
+                # Create unique key for each sense
+                pos_str = ', '.join(part_of_speech) if part_of_speech else 'unspecified'
+                sense_key = f"sense{i+1} {pos_str}"
+                
+                meanings_dict[sense_key] = glosses
             
             return {
                 'word': self.word,
                 'readings': [k['text'] for k in result.get('kana', []) if k.get('common', False)][:2],
                 'kanji': [k['text'] for k in result.get('kanji', []) if k.get('common', False)][:2],
-                'meanings': formatted_meanings,
+                'meanings': meanings_dict,
                 'examples': examples
             }
         return None
@@ -142,11 +140,18 @@ class JapaneseWord(str):
             return f"JapaneseWord('{self.word}') - No translation found"
             
         readings = ', '.join(self.meaning.get('readings', []))
-        meanings = self.meaning.get('meanings', '')  # Already formatted as numbered list
+        meanings_dict = self.meaning.get('meanings', {})
+        
+        # Create a simplified summary from the first few glosses
+        all_glosses = []
+        for pos, glosses in meanings_dict.items():
+            all_glosses.extend(glosses[:2])  # Take first 2 glosses from each part of speech
+        meanings_summary = ', '.join(all_glosses[:3])  # Limit to 3 total for readability
+        
         if readings:
-            return f"{self.word} ({readings}) - {meanings}"
+            return f"{self.word} ({readings}) - {meanings_summary}"
         else:
-            return f"{self.word} - {meanings}"
+            return f"{self.word} - {meanings_summary}"
     
     def __repr__(self):
         """Return detailed representation for debugging"""
@@ -154,11 +159,14 @@ class JapaneseWord(str):
             return f"JapaneseWord('{self.word}', found=False)"
             
         readings = self.meaning.get('readings', [])
-        meanings = self.meaning.get('meanings', [])
+        meanings_dict = self.meaning.get('meanings', {})
         examples = self.meaning.get('examples', [])
         
+        # Count total glosses across all parts of speech
+        total_glosses = sum(len(glosses) for glosses in meanings_dict.values())
+        
         return (f"JapaneseWord('{self.word}', found=True, "
-                f"readings={len(readings)}, meanings={len(meanings)}, "
+                f"readings={len(readings)}, meanings={total_glosses}, "
                 f"examples={len(examples)})")
     
     @staticmethod
