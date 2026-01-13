@@ -111,35 +111,6 @@ class AnkiClient:
         
         return '\n'.join(formatted_meanings)
 
-    def _validate_audio_url(self, url):
-        """
-        Check if audio URL redirects to a valid audio file
-
-        Args:
-            url (str): The LanguagePod101 audio URL to validate
-
-        Returns:
-            bool: True if audio exists, False otherwise
-        """
-        try:
-            # Use GET with stream=True to check without downloading the full file
-            # HEAD requests don't always work correctly with this API
-            # Add User-Agent header to avoid 403 Forbidden responses
-            headers = {
-                'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36'
-            }
-            response = requests.get(url, allow_redirects=True, timeout=5, stream=True, headers=headers)
-            response.close()  # Close immediately, we just needed to check
-
-            # Valid audio returns 200 and has audio content type
-            content_type = response.headers.get('content-type', '')
-            print(f"DEBUG: status_code = {response.status_code}, content_type = {content_type}")
-            return (response.status_code == 200 and
-                    ('audio' in content_type or 'mpeg' in content_type))
-        except requests.RequestException as e:
-            print(f"DEBUG: Request exception: {e}")
-            return False
-
     def create_card(self, card_info):
         """
         Create a new card in the Anki deck

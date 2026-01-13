@@ -87,17 +87,11 @@ class JapaneseWord(str):
                     'japanese_text': example.get('text', ''),
                     'sentences': []
                 }
-                
-                for sentence in example.get('sentences', []):
-                    if sentence.get('land') == 'jpn':
-                        japanese_sentence = sentence.get('text', '')
-                    elif sentence.get('land') == 'eng':
-                        english_sentence = sentence.get('text', '')
-                
+
                 # Find matching Japanese and English pairs
                 jpn_sentences = [s.get('text', '') for s in example.get('sentences', []) if s.get('land') == 'jpn']
                 eng_sentences = [s.get('text', '') for s in example.get('sentences', []) if s.get('land') == 'eng']
-                
+
                 if jpn_sentences and eng_sentences:
                     example_entry['sentences'] = {
                         'japanese': jpn_sentences[0],
