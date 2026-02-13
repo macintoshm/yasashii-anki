@@ -1,6 +1,7 @@
 """Yasashii Anki GUI - Graphical interface for Japanese word lookup and Anki card creation"""
 
 import tkinter as tk
+import tkinter.font as tkfont
 from tkinter import ttk, scrolledtext
 import threading
 from .japanese_word import JapaneseWord
@@ -15,6 +16,7 @@ class YasashiiApp:
         self.root.title("Yasashii Anki")
         self.root.geometry("600x700")
         self.root.minsize(400, 500)
+        self.jp_font_family = self.get_japanese_font()
 
         self.setup_ui()
 
@@ -35,7 +37,7 @@ class YasashiiApp:
         title_label = ttk.Label(
             main_frame,
             text="Yasashii Anki",
-            font=("Helvetica", 18, "bold")
+            font=(self.jp_font_family, 18, "bold")
         )
         title_label.grid(row=0, column=0, pady=(0, 10), sticky="w")
 
@@ -50,7 +52,7 @@ class YasashiiApp:
         self.input_text = scrolledtext.ScrolledText(
             main_frame,
             height=8,
-            font=("Helvetica", 14),
+            font=(self.jp_font_family, 14),
             wrap=tk.WORD
         )
         self.input_text.grid(row=1, column=0, sticky="nsew", pady=(20, 10))
@@ -85,19 +87,38 @@ class YasashiiApp:
         self.results_text = scrolledtext.ScrolledText(
             main_frame,
             height=15,
-            font=("Helvetica", 12),
+            font=(self.jp_font_family, 12),
             wrap=tk.WORD,
             state=tk.DISABLED
         )
         self.results_text.grid(row=4, column=0, sticky="nsew")
 
         # Configure text tags for styling
-        self.results_text.tag_configure("word", font=("Helvetica", 14, "bold"))
+        self.results_text.tag_configure(
+            "word",
+            font=(self.jp_font_family, 14, "bold")
+        )
         self.results_text.tag_configure("reading", foreground="gray")
         self.results_text.tag_configure("meaning", foreground="#333333")
         self.results_text.tag_configure("success", foreground="green")
         self.results_text.tag_configure("warning", foreground="orange")
         self.results_text.tag_configure("error", foreground="red")
+
+    def get_japanese_font(self):
+        """Return a font family that supports Japanese on this system."""
+        available = tkfont.families()
+
+        for candidate in (
+            "Noto Sans CJK JP",
+            "Noto Sans JP",
+            "Yu Gothic UI",
+            "Meiryo",
+            "MS Gothic",
+        ):
+            if candidate in available:
+                return candidate
+
+        return "Arial"  # fallback
 
     def on_submit(self):
         """Handle submit button click"""

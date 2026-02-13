@@ -3,6 +3,8 @@
 .cursorrules
 .DS_Store
 
+jmdict-examples-eng-3.6.1.json
+
 jmdict-with-examples.json
 .claude
 logs/

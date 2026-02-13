@@ -235,6 +235,15 @@ AUTO_ANKI_MEANING_FIELD=Back
 
 ## Troubleshooting
 
+### GUI box showing squares for Japanese characters
+It is likely that you are using WSL on Windows. 
+To fix this, install a Japanese font in Ubuntu:
+```
+sudo apt update
+sudo apt install fonts-noto-cjk
+```
+This installs Noto Sans CJK, which fully supports Japanese. Run the GUI again and it should work.
+
 ### "Failed to connect to Anki Connect API"
 
 - Make sure Anki is running
